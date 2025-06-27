@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-Controlled Ludo Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .voice-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .voice-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .voice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .voice-btn.listening {
+            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .status-text {
+            font-size: 1.1em;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .game-board-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        .board {
+            width: 500px;
+            height: 500px;
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            gap: 2px;
+            background: #333;
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell {
+            background: #f8f9fa;
+            border-radius: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .cell.safe {
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+        }
+
+        .cell.home-red { background: linear-gradient(45deg, #ff6b6b, #ff5252); }
+        .cell.home-blue { background: linear-gradient(45deg, #4dabf7, #339af0); }
+        .cell.home-green { background: linear-gradient(45deg, #51cf66, #40c057); }
+        .cell.home-yellow { background: linear-gradient(45deg, #ffd43b, #fab005); }
+
+        .cell.path-red { background: linear-gradient(45deg, #ffc9c9, #ffa8a8); }
+        .cell.path-blue { background: linear-gradient(45deg, #a5d8ff, #74c0fc); }
+        .cell.path-green { background: linear-gradient(45deg, #b2f2bb, #8ce99a); }
+        .cell.path-yellow { background: linear-gradient(45deg, #fff3bf, #ffec99); }
+
+        .piece {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
+        }
+
+        .piece.red { background: #ff6b6b; }
+        .piece.blue { background: #4dabf7; }
+        .piece.green { background: #51cf66; }
+        .piece.yellow { background: #ffd43b; }
+
+        .piece:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .piece.selected {
+            animation: bounce 0.6s infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% { transform: scale(1.2); }
+            100% { transform: scale(1.4); }
+        }
+
+        .game-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .current-player {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .current-player h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .dice-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .dice {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border: 3px solid #333;
+            border-radius: 15px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .dice.rolling {
+            animation: roll 1s infinite;
+        }
+
+        @keyframes roll {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg); }
+            50% { transform: rotate(180deg); }
+            75% { transform: rotate(270deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .commands {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .commands h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .command-list {
+            list-style: none;
+            space-y: 8px;
+        }
+
+        .command-list li {
+            padding: 8px 12px;
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #555;
+            border-left: 4px solid #667eea;
+        }
+
+        .log {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin-top: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .log h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 768px) {
+            .game-board-container {
+                flex-direction: column;
+            }
+            
+            .board {
+                width: 400px;
+                height: 400px;
+            }
+            
+            .game-title {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">🎲 Voice-Controlled Ludo</h1>
+            <div class="voice-status">
+                <button id="voiceBtn" class="voice-btn">🎤 Start Voice Control</button>
+                <span id="statusText" class="status-text">Click to activate voice commands</span>
+            </div>
+        </div>
+
+        <div class="game-board-container">
+            <div id="board" class="board"></div>
+            
+            <div class="game-panel">
+                <div class="current-player">
+                    <h3>Current Player</h3>
+                    <p id="currentPlayer">Red Player</p>
+                </div>
+
+                <div class="dice-container">
+                    <h3>Dice</h3>
+                    <div id="dice" class="dice">🎲</div>
+                    <p>Say "roll dice" to roll</p>
+                </div>
+
+                <div class="commands">
+                    <h3>Voice Commands</h3>
+                    <ul class="command-list">
+                        <li>"roll dice" - Roll the dice</li>
+                        <li>"move piece 1" - Move piece number 1</li>
+                        <li>"move piece 2" - Move piece number 2</li>
+                        <li>"move piece 3" - Move piece number 3</li>
+                        <li>"move piece 4" - Move piece number 4</li>
+                        <li>"next player" - Skip turn</li>
+                        <li>"restart game" - Start new game</li>
+                    </ul>
+                </div>
+
+                <div class="log">
+                    <h4>Game Log</h4>
+                    <div id="gameLog"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VoiceLudoGame {
+            constructor() {
+                this.currentPlayer = 0; // 0: Red, 1: Blue, 2: Green, 3: Yellow
+                this.players = ['Red', 'Blue', 'Green', 'Yellow'];
+                this.colors = ['red', 'blue', 'green', 'yellow'];
+                this.diceValue = 0;
+                this.gameState = 'waiting'; // waiting, rolled, moving
+                
+                this.pieces = {
+                    red: [0, 0, 0, 0],
+                    blue: [0, 0, 0, 0],
+                    green: [0, 0, 0, 0],
+                    yellow: [0, 0, 0, 0]
+                };
+
+                this.isListening = false;
+                this.recognition = null;
+                this.synthesis = window.speechSynthesis;
+                
+                this.initializeBoard();
+                this.initializeVoiceRecognition();
+                this.bindEvents();
+                this.updateDisplay();
+                this.speak("Welcome to Voice-Controlled Ludo! Click the microphone to start.");
+            }
+
+            initializeBoard() {
+                const board = document.getElementById('board');
+                board.innerHTML = '';
+                
+                // Create 15x15 grid
+                for (let i = 0; i < 225; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.index = i;
+                    
+                    // Add special cell classes based on position
+                    this.setCellType(cell, i);
+                    board.appendChild(cell);
+                }
+                
+                this.placePieces();
+            }
+
+            setCellType(cell, index) {
+                const row = Math.floor(index / 15);
+                const col = index % 15;
+                
+                // Home areas (corners)
+                if (row < 6 && col < 6) {
+                    cell.classList.add('home-red');
+                } else if (row < 6 && col > 8) {
+                    cell.classList.add('home-blue');
+                } else if (row > 8 && col < 6) {
+                    cell.classList.add('home-green');
+                } else if (row > 8 && col > 8) {
+                    cell.classList.add('home-yellow');
+                }
+                
+                // Safe spots and paths
+                if ((row === 6 || row === 8) && col >= 1 && col <= 13) {
+                    if (col === 2 || col === 8 || col === 12) {
+                        cell.classList.add('safe');
+                    }
+                }
+                if ((col === 6 || col === 8) && row >= 1 && row <= 13) {
+                    if (row === 2 || row === 8 || row === 12) {
+                        cell.classList.add('safe');
+                    }
+                }
+                
+                // Color paths to center
+                if (row === 7 && col >= 1 && col <= 5) {
+                    cell.classList.add('path-red');
+                } else if (col === 7 && row >= 1 && row <= 5) {
+                    cell.classList.add('path-blue');
+                } else if (row === 7 && col >= 9 && col <= 13) {
+                    cell.classList.add('path-green');
+                } else if (col === 7 && row >= 9 && row <= 13) {
+                    cell.classList.add('path-yellow');
+                }
+            }
+
+            placePieces() {
+                // Remove existing pieces
+                document.querySelectorAll('.piece').forEach(piece => piece.remove());
+                
+                // Home positions for each color
+                const homePositions = {
+                    red: [16, 17, 31, 32],
+                    blue: [26, 27, 41, 42],
+                    green: [181, 182, 196, 197],
+                    yellow: [191, 192, 206, 207]
+                };
+                
+                // Place pieces in home positions
+                Object.keys(homePositions).forEach(color => {
+                    homePositions[color].forEach((pos, index) => {
+                        const cell = document.querySelector(`[data-index="${pos}"]`);
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${color}`;
+                        piece.dataset.color = color;
+                        piece.dataset.pieceIndex = index;
+                        cell.appendChild(piece);
+                    });
+                });
+            }
+
+            initializeVoiceRecognition() {
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    this.recognition = new SpeechRecognition();
+                    
+                    this.recognition.continuous = true;
+                    this.recognition.interimResults = false;
+                    this.recognition.lang = 'en-US';
+                    
+                    this.recognition.onresult = (event) => {
+                        const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+                        this.log(`Voice command: "${command}"`);
+                        this.processVoiceCommand(command);
+                    };
+                    
+                    this.recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        this.log(`Voice recognition error: ${event.error}`);
+                    };
+                    
+                    this.recognition.onend = () => {
+                        if (this.isListening) {
+                            this.recognition.start(); // Restart if still listening
+                        }
+                    };
+                } else {
+                    this.log('Speech recognition not supported in this browser');
+                    this.speak('Speech recognition not supported in this browser');
+                }
+            }
+
+            bindEvents() {
+                document.getElementById('voiceBtn').addEventListener('click', () => {
+                    this.toggleVoiceRecognition();
+                });
+            }
+
+            toggleVoiceRecognition() {
+                const btn = document.getElementById('voiceBtn');
+                const status = document.getElementById('statusText');
+                
+                if (!this.isListening) {
+                    if (this.recognition) {
+                        this.recognition.start();
+                        this.isListening = true;
+                        btn.textContent = '🔴 Stop Listening';
+                        btn.classList.add('listening');
+                        status.textContent = 'Listening for commands...';
+                        this.speak('Voice control activated. Say your commands now.');
+                    }
+                } else {
+                    if (this.recognition) {
+                        this.recognition.stop();
+                        this.isListening = false;
+                        btn.textContent = '🎤 Start Voice Control';
+                        btn.classList.remove('listening');
+                        status.textContent = 'Click to activate voice commands';
+                        this.speak('Voice control deactivated.');
+                    }
+                }
+            }
+
+            processVoiceCommand(command) {
+                if (command.includes('roll dice') || command.includes('roll the dice')) {
+                    this.rollDice();
+                } else if (command.includes('move piece')) {
+                    const match = command.match(/move piece (\d+)/);
+                    if (match) {
+                        const pieceNum = parseInt(match[1]) - 1;
+                        this.movePiece(pieceNum);
+                    }
+                } else if (command.includes('next player') || command.includes('skip turn')) {
+                    this.nextPlayer();
+                } else if (command.includes('restart game') || command.includes('new game')) {
+                    this.restartGame();
+                } else {
+                    this.speak('Command not recognized. Try saying "roll dice" or "move piece 1".');
+                    this.log('Command not recognized');
+                }
+            }
+
+            rollDice() {
+                if (this.gameState === 'moving') {
+                    this.speak('Please move a piece first before rolling again.');
+                    return;
+                }
+                
+                const dice = document.getElementById('dice');
+                dice.classList.add('rolling');
+                
+                // Animate dice roll
+                let rollCount = 0;
+                const rollInterval = setInterval(() => {
+                    dice.textContent = Math.floor(Math.random() * 6) + 1;
+                    rollCount++;
+                    
+                    if (rollCount > 10) {
+                        clearInterval(rollInterval);
+                        dice.classList.remove('rolling');
+                        this.diceValue = Math.floor(Math.random() * 6) + 1;
+                        dice.textContent = this.diceValue;
+                        this.gameState = 'rolled';
+                        this.log(`${this.players[this.currentPlayer]} rolled ${this.diceValue}`);
+                        this.speak(`You rolled ${this.diceValue}. Now move a piece.`);
+                    }
+                }, 100);
+            }
+
+            movePiece(pieceIndex) {
+                if (this.gameState !== 'rolled') {
+                    this.speak('Roll the dice first before moving a piece.');
+                    return;
+                }
+                
+                if (pieceIndex < 0 || pieceIndex > 3) {
+                    this.speak('Invalid piece number. Choose piece 1, 2, 3, or 4.');
+                    return;
+                }
+                
+                const currentColor = this.colors[this.currentPlayer];
+                const currentPosition = this.pieces[currentColor][pieceIndex];
+                
+                // Simple movement logic - just advance the piece position
+                this.pieces[currentColor][pieceIndex] += this.diceValue;
+                
+                this.log(`${this.players[this.currentPlayer]} moved piece ${pieceIndex + 1} by ${this.diceValue} spaces`);
+                this.speak(`Moved piece ${pieceIndex + 1} by ${this.diceValue} spaces.`);
+                
+                // If didn't roll a 6, switch to next player
+                if (this.diceValue !== 6) {
+                    this.nextPlayer();
+                } else {
+                    this.gameState = 'waiting';
+                    this.speak('You rolled a 6! Roll again.');
+                }
+                
+                this.updateDisplay();
+            }
+
+            nextPlayer() {
+                this.currentPlayer = (this.currentPlayer + 1) % 4;
+                this.gameState = 'waiting';
+                this.diceValue = 0;
+                document.getElementById('dice').textContent = '🎲';
+                this.updateDisplay();
+                this.speak(`${this.players[this.currentPlayer]} player's turn. Roll the dice.`);
+                this.log(`${this.players[this.currentPlayer]}'s turn`);
+            }
+
+            restartGame() {
+                this.currentPlayer = 0;
+                this.diceValue = 0;
+                this.gameState = 'waiting';
+                this.pieces = {
+                    red: [0, 0, 0, 0],
+                    blue: [0, 0, 0, 0],
+                    green: [0, 0, 0, 0],
+                    yellow: [0, 0, 0, 0]
+                };
+                
+                this.initializeBoard();
+                this.updateDisplay();
+                document.getElementById('gameLog').innerHTML = '';
+                this.speak('Game restarted. Red player begins. Roll the dice.');
+                this.log('Game restarted');
+            }
+
+            updateDisplay() {
+                document.getElementById('currentPlayer').textContent = `${this.players[this.currentPlayer]} Player`;
+                
+                // Update current player color indicator
+                const playerElement = document.querySelector('.current-player');
+                playerElement.style.background = `linear-gradient(45deg, ${this.getPlayerColor(this.currentPlayer)}, ${this.getPlayerColorDark(this.currentPlayer)})`;
+            }
+
+            getPlayerColor(playerIndex) {
+                const colors = ['#ff6b6b', '#4dabf7', '#51cf66', '#ffd43b'];
+                return colors[playerIndex];
+            }
+
+            getPlayerColorDark(playerIndex) {
+                const colors = ['#ff5252', '#339af0', '#40c057', '#fab005'];
+                return colors[playerIndex];
+            }
+
+            speak(text) {
+                if (this.synthesis) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1;
+                    utterance.volume = 0.8;
+                    this.synthesis.speak(utterance);
+                }
+            }
+
+            log(message) {
+                const gameLog = document.getElementById('gameLog');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                gameLog.appendChild(entry);
+                gameLog.scrollTop = gameLog.scrollHeight;
+            }
+        }
+
+        // Initialize the game when the page loads
+        window.addEventListener('load', () => {
+            new VoiceLudoGame();
+        });
+    </script>
+</body>
+</html>
